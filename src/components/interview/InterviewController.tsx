@@ -19,6 +19,7 @@ export function InterviewController({
   userContext,
   jobApplications,
   apiKey,
+  onConfigureApiKey,
 }: InterviewControllerProps) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
@@ -44,7 +45,14 @@ export function InterviewController({
           <AlertDescription className="space-y-2">
             <p>Please complete the following steps before starting an interview:</p>
             <ul className="list-disc pl-5">
-              {!apiKey && <li>Set your Gemini API key.</li>}
+              {!apiKey && (
+                <li>
+                  Set your Gemini API key.{' '}
+                  <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>
+                    Click here to set it.
+                  </Button>
+                </li>
+              )}
               {!userContext.resume && <li>Add your resume in the Library's "My Profile" section.</li>}
             </ul>
           </AlertDescription>
