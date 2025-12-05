@@ -26,7 +26,7 @@ const GenerateReasonedAnswerOutputSchema = z.object({
 export type GenerateReasonedAnswerOutput = z.infer<typeof GenerateReasonedAnswerOutputSchema>;
 
 export async function generateReasonedAnswer(input: GenerateReasonedAnswerInput): Promise<GenerateReasonedAnswerOutput> {
-  return generateReasonedAnswerFlow(input);
+  return generateReasonedAnswersFlow(input);
 }
 
 const prompt = ai.definePrompt({
@@ -47,9 +47,9 @@ Question: {{{question}}}
 Answer:`,
 });
 
-const generateReasonedAnswerFlow = ai.defineFlow(
+export const generateReasonedAnswersFlow = ai.defineFlow(
   {
-    name: 'generateReasonedAnswerFlow',
+    name: 'generateReasonedAnswersFlow',
     inputSchema: GenerateReasonedAnswerInputSchema,
     outputSchema: GenerateReasonedAnswerOutputSchema,
   },

@@ -2,23 +2,26 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { JobContext, UserContext, InterviewMessage, HudSettings } from "@/lib/types";
-import { GoogleGenerativeAI, Part, Content } from "@google/generative-ai";
+import { GoogleGenerativeAI, Content, GenerationConfig } from "@google/generative-ai";
 import { MessageList } from "./MessageList";
 import { SubtitleView } from "./SubtitleView";
 import { HUDControls } from "./HUDControls";
 import { Button } from "../ui/button";
-import { PanelTopClose, Square, List, MessageSquareText, PictureInPicture, Loader2, Mic, MicOff, AlertCircle } from "lucide-react";
+import { PanelTopClose, List, MessageSquareText, Loader2, Mic, AlertCircle } from "lucide-react";
+import { useQueue } from "@/hooks/useQueue";
+import { runFlow } from '@genkit-ai/next/client';
 
 interface CopilotHUDProps {
   apiKey: string;
   userContext: UserContext;
   jobContext: JobContext;
   onStopSession: () => void;
+  audioStream: MediaStream;
 }
 
 type HudView = 'list' | 'subtitle';
 
-export function CopilotHUD({ apiKey, userContext, jobContext, onStopSession }: CopilotHUDProps) {
+export function CopilotHUD({ apiKey, userContext, jobContext, onStopSession, audioStream }: CopilotHUDProps) {
   const [settings, setSettings] = useState<HudSettings>({
     fontSize: 16,
     opacity: 80,
@@ -29,83 +32,128 @@ export function CopilotHUD({ apiKey, userContext, jobContext, onStopSession }: C
 
   const [view, setView] = useState<HudView>('subtitle');
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
-  const [isListening, setIsListening] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<string | null>(null);
 
-  const pipWindow = useRef<Window | null>(null);
-  const hudRef = useRef<HTMLDivElement | null>(null);
+  const { addToQueue, onMessage } = useQueue();
 
-  // Placeholder for complex audio and Gemini Live logic
+  const genAI = useRef(new GoogleGenerativeAI(apiKey));
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  
+  // ... (systemInstruction and generationConfig remain the same)
+
+  const systemInstruction: Content = {
+    role: 'system',
+    parts: [{
+      text: `You are an expert interview coach. Your name is inferred from the resume.
+      You must act as the candidate and answer interview questions based on the provided resume and tailored to the specific job description.
+      AI Style: ${settings.aiStyle}.
+      Resume: ${userContext.resume}
+      Job Description: ${jobContext.jobDescription}
+      Company: ${jobContext.companyName}`
+    }]
+  };
+
+  const generationConfig: GenerationConfig = {
+    stopSequences: ["\n\n\n"],
+    maxOutputTokens: 1500,
+    temperature: 0.7,
+    topP: 0.6,
+    topK: 15,
+  };
+
   useEffect(() => {
-    // 1. Initialize GoogleGenerativeAI with API Key
-    const genAI = new GoogleGenerativeAI(apiKey);
+    if (!audioStream) return;
     
-    // 2. Define system instruction based on contexts and AI style
-    const systemInstruction: Content = {
-      role: 'system',
-      parts: [{
-        text: `You are an expert interview coach acting as the candidate. Your name is inferred from the resume.
-        You must answer interview questions based on the provided resume and tailored to the specific job description.
-        AI Style: ${settings.aiStyle}.
-        Resume: ${userContext.resume}
-        Job Description: ${jobContext.jobDescription}
-        Company: ${jobContext.companyName}`
-      }]
+    const recorder = new MediaRecorder(audioStream, { mimeType: "audio/webm" });
+    mediaRecorder.current = recorder;
+
+    recorder.ondataavailable = async (event) => {
+      if (event.data.size > 0) {
+        const audioBlob = new Blob([event.data], { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result?.toString().split(',')[1];
+          if (base64Audio) {
+            try {
+              // Clear previous status messages
+              setError(null);
+              setTranscriptionStatus(null);
+
+              const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audio: base64Audio, apiKey }),
+              });
+              
+              if (!response.ok) {
+                let errorMessage = response.statusText;
+                try {
+                    const errorData = await response.json();
+                    if (errorData?.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) { /* Ignore JSON parse error */ }
+                throw new Error(errorMessage || "Server returned an error without a message.");
+              }
+              
+              const { transcript } = await response.json();
+
+              if (transcript) {
+                addToQueue(transcript);
+              } else {
+                // Handle empty transcript case
+                setTranscriptionStatus("No speech detected.");
+                setTimeout(() => setTranscriptionStatus(null), 2000); // Clear after 2s
+              }
+            } catch (err) {
+              console.error("Transcription error:", err);
+              if (err instanceof Error) {
+                  setError(err.message);
+              } else {
+                  setError("Failed to transcribe audio.");
+              }
+            }
+          }
+        };
+      }
+    };
+    
+    recorder.start(3000); // Capture 3-second audio chunks
+    setIsReady(true);
+
+    return () => {
+      recorder.stop();
+    };
+  }, [audioStream, addToQueue, apiKey]);
+
+  useEffect(() => {
+    const handleMessage = async (transcript: string) => {
+      const id = crypto.randomUUID();
+      setMessages(prev => [...prev, { id, role: 'user', text: transcript }]);
+      
+      try {
+        const model = genAI.current.getGenerativeModel({ model: "gemini-1.5-flash-latest", systemInstruction });
+        const chat = model.startChat({ generationConfig });
+        const result = await chat.sendMessage(transcript);
+        const responseText = result.response.text();
+        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'model', text: responseText }]);
+      } catch (err) {
+        console.error("Gemini response error:", err);
+        setError("Failed to get response from Gemini.");
+      }
     };
 
-    // 3. Start audio capture (getUserMedia)
-    // 4. Process audio: downsample to 16kHz, convert to 16-bit PCM. This is complex and would require an AudioWorklet.
-    // 5. Connect to Gemini Live API (`genAI.getGenerativeModel({ model: 'gemini-2.5-flash-native-audio-preview-09-2025' }).live()`)
-    // 6. Stream audio chunks to Gemini.
-    // 7. Listen for responses and update `messages` state.
+    onMessage(handleMessage);
     
-    // Mock functionality for demonstration
-    setIsListening(true);
-    const mockInterval = setInterval(() => {
-      const isUserModel = Math.random() > 0.5;
-      const id = crypto.randomUUID();
-      const role = isUserModel ? 'model' : 'user';
-      const text = isUserModel ? "As a Senior Engineer, I tackled this by first defining the project scope and then delegating tasks effectively." : "Can you tell me about a time you faced a challenge?";
-      setMessages(prev => [...prev, { id, role, text }]);
-    }, 10000);
+    return () => {
+      onMessage(null);
+    };
+  }, [onMessage, generationConfig, systemInstruction]);
 
-    return () => clearInterval(mockInterval);
-
-  }, [apiKey, userContext, jobContext, settings.aiStyle]);
-  
-  const togglePip = async () => {
-    if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-    } else if (hudRef.current && 'documentPictureInPicture' in window) {
-      try {
-        const pip = await window.documentPictureInPicture.requestWindow({
-            width: hudRef.current.clientWidth,
-            height: hudRef.current.clientHeight,
-        });
-        pip.document.body.append(hudRef.current);
-        pipWindow.current = pip;
-
-        // Copy styles
-        [...document.styleSheets].forEach((styleSheet) => {
-            const cssRules = [...styleSheet.cssRules].map(rule => rule.cssText).join('');
-            const style = document.createElement('style');
-            style.textContent = cssRules;
-            pip.document.head.appendChild(style);
-        });
-
-        pip.addEventListener('pagehide', () => {
-            document.body.append(hudRef.current!);
-            pipWindow.current = null;
-        });
-
-      } catch (e) {
-        console.error(e);
-        setError("Picture-in-Picture failed. Your browser might not support it or it's blocked.");
-      }
-    } else {
-        setError("Picture-in-Picture API is not available in this browser.");
-    }
-  };
+  // ... (themeClasses and hudContainerClass remain the same)
 
   const themeClasses: Record<string, string> = {
     cyan: 'text-cyan-300',
@@ -119,7 +167,6 @@ export function CopilotHUD({ apiKey, userContext, jobContext, onStopSession }: C
 
   return (
     <div
-      ref={hudRef}
       className={`fixed inset-0 z-50 flex flex-col p-4 rounded-lg shadow-2xl transition-all duration-300 ${hudContainerClass}`}
       style={{ opacity: settings.opacity / 100 }}
     >
@@ -135,19 +182,20 @@ export function CopilotHUD({ apiKey, userContext, jobContext, onStopSession }: C
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={onStopSession}><PanelTopClose className="h-5 w-5"/></Button>
-            <Button variant="ghost" size="icon" onClick={() => setView(v => v === 'list' ? 'subtitle' : 'list')}>
+            <Button variant="ghost" size="icon" onClick={() => setView(v => v === 'list' ? 'subtitle' : 'list')}> 
               {view === 'list' ? <MessageSquareText className="h-5 w-5"/> : <List className="h-5 w-5"/>}
             </Button>
-            <Button variant="ghost" size="icon" onClick={togglePip}><PictureInPicture className="h-5 w-5"/></Button>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {isListening ? (
+            {transcriptionStatus ? (
+                <span className="text-amber-500">{transcriptionStatus}</span>
+            ) : isReady ? (
                 <>
                 <Mic className="h-4 w-4 text-green-500 animate-pulse"/> Listening...
                 </>
             ) : error ? (
                 <>
-                <AlertCircle className="h-4 w-4 text-red-500"/> Error
+                <AlertCircle className="h-4 w-4 text-red-500"/> {error}
                 </>
             ) : (
                 <>

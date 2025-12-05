@@ -1,32 +1,25 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserContextEditor } from "@/components/library/UserContextEditor";
 import { JobApplicationsManager } from "@/components/library/JobApplicationsManager";
 import { InterviewController } from "@/components/interview/InterviewController";
-import { ApiKeyDialog } from "@/components/ApiKeyDialog";
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import type { JobContext, UserContext } from '@/lib/types';
 import { BookCopy, Mic } from 'lucide-react';
 
-export function Dashboard() {
-  const [apiKey, setApiKey] = useLocalStorage<string>('gemini-api-key', '');
-  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+// Read the Gemini API key from environment variables
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 
+export function Dashboard() {
   const [userContext, setUserContext] = useLocalStorage<UserContext>('user-context', {
     resume: '',
     speakingStyle: 'Clear and concise, professional yet approachable.',
   });
 
   const [jobApplications, setJobApplications] = useLocalStorage<JobContext[]>('job-applications', []);
-
-  useEffect(() => {
-    if (!apiKey) {
-      setIsApiKeyDialogOpen(true);
-    }
-  }, [apiKey]);
-
+  
   return (
     <>
       <Tabs defaultValue="interview" className="w-full">
@@ -44,8 +37,10 @@ export function Dashboard() {
           <InterviewController
             userContext={userContext}
             jobApplications={jobApplications}
-            apiKey={apiKey}
-            onConfigureApiKey={() => setIsApiKeyDialogOpen(true)}
+            apiKey={GEMINI_API_KEY}
+            onConfigureApiKey={() => {
+              // No longer needed
+            }}
           />
         </TabsContent>
         <TabsContent value="library" className="mt-6 space-y-6">
@@ -53,12 +48,6 @@ export function Dashboard() {
           <JobApplicationsManager jobApplications={jobApplications} setJobApplications={setJobApplications} />
         </TabsContent>
       </Tabs>
-      <ApiKeyDialog
-        isOpen={isApiKeyDialogOpen}
-        onOpenChange={setIsApiKeyDialogOpen}
-        apiKey={apiKey}
-        setApiKey={setApiKey}
-      />
     </>
   );
 }

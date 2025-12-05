@@ -63,7 +63,7 @@ const tailorAnswersToJobDescriptionPrompt = ai.definePrompt({
   `,
 });
 
-const tailorAnswersToJobDescriptionFlow = ai.defineFlow(
+export const tailorAnswersToJobDescriptionFlow = ai.defineFlow(
   {
     name: 'tailorAnswersToJobDescriptionFlow',
     inputSchema: TailorAnswersToJobDescriptionInputSchema,

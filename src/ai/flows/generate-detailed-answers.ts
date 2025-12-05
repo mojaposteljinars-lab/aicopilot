@@ -30,7 +30,7 @@ const GenerateDetailedAnswerOutputSchema = z.object({
 export type GenerateDetailedAnswerOutput = z.infer<typeof GenerateDetailedAnswerOutputSchema>;
 
 export async function generateDetailedAnswer(input: GenerateDetailedAnswerInput): Promise<GenerateDetailedAnswerOutput> {
-  return generateDetailedAnswerFlow(input);
+  return generateDetailedAnswersFlow(input);
 }
 
 const prompt = ai.definePrompt({
@@ -54,9 +54,9 @@ Question: {{{question}}}
 Your answer should be structured, detailed, and tailored to the user's background and the specific job requirements.`,
 });
 
-const generateDetailedAnswerFlow = ai.defineFlow(
+export const generateDetailedAnswersFlow = ai.defineFlow(
   {
-    name: 'generateDetailedAnswerFlow',
+    name: 'generateDetailedAnswersFlow',
     inputSchema: GenerateDetailedAnswerInputSchema,
     outputSchema: GenerateDetailedAnswerOutputSchema,
   },

@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CopilotHUD } from '@/components/interview/CopilotHUD';
-import { Bot, Briefcase, FileWarning, Play, Info } from 'lucide-react';
+import { Bot, FileWarning, Play, Info } from 'lucide-react';
 
 interface InterviewControllerProps {
   userContext: UserContext;
@@ -20,49 +19,36 @@ export function InterviewController({
   userContext,
   jobApplications,
   apiKey,
-  onConfigureApiKey,
 }: InterviewControllerProps) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [isSessionActive, setIsSessionActive] = useState(false);
-
+  
   const startSession = () => {
-    if (apiKey && userContext.resume && selectedJobId) {
-      setIsSessionActive(true);
+    const selectedJob = jobApplications.find(job => job.id === selectedJobId);
+    if (apiKey && userContext.resume && selectedJob) {
+      // Save context to localStorage for the popup to access
+      localStorage.setItem('interview_apiKey', apiKey);
+      localStorage.setItem('interview_userContext', JSON.stringify(userContext));
+      localStorage.setItem('interview_jobContext', JSON.stringify(selectedJob));
+      
+      // Open the HUD in a new window
+      window.open('/interview-hud', 'InterviewHUD', 'width=800,height=600,scrollbars=yes,resizable=yes');
     }
   };
-
-  const stopSession = () => {
-    setIsSessionActive(false);
-  };
-  
-  const selectedJob = jobApplications.find(job => job.id === selectedJobId);
-
-  if (isSessionActive && selectedJob) {
-    return (
-      <CopilotHUD
-        apiKey={apiKey}
-        userContext={userContext}
-        jobContext={selectedJob}
-        onStopSession={stopSession}
-      />
-    );
-  }
 
   return (
     <div className="space-y-6">
       {!apiKey || !userContext.resume ? (
-         <Alert variant="destructive">
-            <FileWarning className="h-4 w-4" />
-            <AlertTitle>Configuration Incomplete</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <p>Please complete the following steps before starting an interview:</p>
-              <ul className="list-disc pl-5">
-                {!apiKey && <li>Set your Gemini API key in the Library tab.</li>}
-                {!userContext.resume && <li>Add your resume in the Library's "My Profile" section.</li>}
-              </ul>
-              <Button variant="secondary" onClick={onConfigureApiKey}>Configure API Key</Button>
-            </AlertDescription>
-          </Alert>
+        <Alert variant="destructive">
+          <FileWarning className="h-4 w-4" />
+          <AlertTitle>Configuration Incomplete</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>Please complete the following steps before starting an interview:</p>
+            <ul className="list-disc pl-5">
+              {!apiKey && <li>Set your Gemini API key.</li>}
+              {!userContext.resume && <li>Add your resume in the Library's "My Profile" section.</li>}
+            </ul>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <Card>
@@ -72,12 +58,12 @@ export function InterviewController({
             Start New Session
           </CardTitle>
           <CardDescription>
-            Select a job application to start your AI-assisted interview.
+            Select a job to start your AI-assisted interview session.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Target Job</label>
+            <label className="text-sm font-medium">1. Target Job</label>
             <Select onValueChange={setSelectedJobId} value={selectedJobId ?? undefined}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a job application..." />
@@ -92,8 +78,8 @@ export function InterviewController({
             </Select>
           </div>
 
-          <Button 
-            onClick={startSession} 
+          <Button
+            onClick={startSession}
             disabled={!apiKey || !userContext.resume || !selectedJobId}
             className="w-full"
           >
@@ -107,7 +93,7 @@ export function InterviewController({
         <Info className="h-4 w-4" />
         <AlertTitle>Stealth Tip</AlertTitle>
         <AlertDescription>
-          During your interview, only share your browser tab, not your entire screen, to keep InterviewAce hidden from the interviewer.
+          The interview will open in a new window. During your interview, only share your browser tab, not your entire screen, to keep InterviewAce hidden from the interviewer.
         </AlertDescription>
       </Alert>
     </div>

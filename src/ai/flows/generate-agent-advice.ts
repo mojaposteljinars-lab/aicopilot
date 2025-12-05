@@ -58,7 +58,7 @@ Question: {{{question}}}
 Provide strategic advice on how to answer this question.`,
 });
 
-const generateAgentAdviceFlow = ai.defineFlow(
+export const generateAgentAdviceFlow = ai.defineFlow(
   {
     name: 'generateAgentAdviceFlow',
     inputSchema: GenerateAgentAdviceInputSchema,

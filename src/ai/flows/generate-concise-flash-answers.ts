@@ -30,7 +30,7 @@ export type GenerateConciseFlashAnswerOutput = z.infer<
 export async function generateConciseFlashAnswer(
   input: GenerateConciseFlashAnswerInput
 ): Promise<GenerateConciseFlashAnswerOutput> {
-  return generateConciseFlashAnswerFlow(input);
+  return generateConciseFlashAnswersFlow(input);
 }
 
 const prompt = ai.definePrompt({
@@ -52,9 +52,9 @@ Question: {{{question}}}
 Provide a concise answer (less than 10 words).`,
 });
 
-const generateConciseFlashAnswerFlow = ai.defineFlow(
+export const generateConciseFlashAnswersFlow = ai.defineFlow(
   {
-    name: 'generateConciseFlashAnswerFlow',
+    name: 'generateConciseFlashAnswersFlow',
     inputSchema: GenerateConciseFlashAnswerInputSchema,
     outputSchema: GenerateConciseFlashAnswerOutputSchema,
   },

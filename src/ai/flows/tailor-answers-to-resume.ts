@@ -53,7 +53,7 @@ const tailorAnswersToResumePrompt = ai.definePrompt({
   {{question}}`,
 });
 
-const tailorAnswersToResumeFlow = ai.defineFlow(
+export const tailorAnswersToResumeFlow = ai.defineFlow(
   {
     name: 'tailorAnswersToResumeFlow',
     inputSchema: TailorAnswersToResumeInputSchema,
