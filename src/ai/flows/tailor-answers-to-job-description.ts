@@ -15,7 +15,7 @@ const TailorAnswersToJobDescriptionInputSchema = z.object({
   jobDescription: z.string().describe('The job description for the role.'),
   resume: z.string().describe('The user resume.'),
   question: z.string().describe('The interview question asked by the interviewer.'),
-  aiStyle: z.enum(['Flash', 'Pro', 'Reasoning', 'Flash-Lite']).default('Pro').describe('The desired AI response style.'),
+  aiStyle: z.enum(['Flash', 'Pro', 'Reasoning', 'Flash-Lite', 'Agent']).default('Pro').describe('The desired AI response style.'),
 });
 export type TailorAnswersToJobDescriptionInput = z.infer<
   typeof TailorAnswersToJobDescriptionInputSchema
@@ -33,6 +33,7 @@ const aiStylePrompts = {
   ['Flash-Lite']: 'Provide an extremely brief answer, under 5 words.',
   Pro: 'Provide a comprehensive and structured explanation.',
   Reasoning: 'Provide a detailed, step-by-step problem-solving approach.',
+  Agent: 'Provide strategic advice on how to approach the question.',
 };
 
 export async function tailorAnswersToJobDescription(

@@ -74,6 +74,7 @@ export function HUDControls({ settings, setSettings }: HUDControlsProps) {
                   <SelectItem value="Flash-Lite">Flash-Lite</SelectItem>
                   <SelectItem value="Pro">Pro</SelectItem>
                   <SelectItem value="Reasoning">Reasoning</SelectItem>
+                  <SelectItem value="Agent">Agent</SelectItem>
                 </SelectContent>
               </Select>
             </div>

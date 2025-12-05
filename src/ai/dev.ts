@@ -6,3 +6,4 @@ import '@/ai/flows/tailor-answers-to-resume.ts';
 import '@/ai/flows/generate-reasoned-answers.ts';
 import '@/ai/flows/generate-detailed-answers.ts';
 import '@/ai/flows/generate-concise-flash-answers.ts';
+import '@/ai/flows/generate-agent-advice.ts';

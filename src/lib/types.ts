@@ -16,7 +16,7 @@ export interface InterviewMessage {
   text: string;
 }
 
-export type AiStyle = 'Flash' | 'Flash-Lite' | 'Pro' | 'Reasoning';
+export type AiStyle = 'Flash' | 'Flash-Lite' | 'Pro' | 'Reasoning' | 'Agent';
 export type HudTheme = 'cyan' | 'yellow' | 'white';
 
 export interface HudSettings {
