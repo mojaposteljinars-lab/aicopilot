@@ -8,6 +8,7 @@ import { generateDetailedAnswersFlow } from './flows/generate-detailed-answers';
 import { generateReasonedAnswersFlow } from './flows/generate-reasoned-answers';
 import { tailorAnswersToJobDescriptionFlow } from './flows/tailor-answers-to-job-description';
 import { tailorAnswersToResumeFlow } from './flows/tailor-answers-to-resume';
+import { transcribeAudio } from './flows/transcribe-audio';
 
 configure({
   plugins: [
@@ -17,7 +18,17 @@ configure({
   enableTracing: true,
 });
 
+// Create a wrapper function for transcription that matches the Genkit flow pattern
+const transcriberFlow = async ({ input }: { input: { audio: string } }) => {
+  const apiKey = process.env.DEEPGRAM_API_KEY;
+  if (!apiKey) {
+    throw new Error('DEEPGRAM_API_KEY environment variable is not set');
+  }
+  return await transcribeAudio(input.audio, apiKey);
+};
+
 export {
+  transcriberFlow,
   generateAgentAdviceFlow,
   generateConciseFlashAnswersFlow,
   generateDetailedAnswersFlow,

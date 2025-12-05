@@ -15,8 +15,7 @@ export default function InterviewHUDPage() {
 
     useEffect(() => {
         try {
-            // TODO: This is a temporary solution for testing. Replace with a secure key management strategy.
-            const storedApiKey = 'f273273f25d2817bf3d670b59a22f0f585d6bf5d';
+            const storedApiKey = localStorage.getItem('interview_apiKey');
             const storedUserContext = localStorage.getItem('interview_userContext');
             const storedJobContext = localStorage.getItem('interview_jobContext');
 

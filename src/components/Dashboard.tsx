@@ -9,9 +9,6 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import type { JobContext, UserContext } from '@/lib/types';
 import { BookCopy, Mic } from 'lucide-react';
 
-// Read the Gemini API key from environment variables
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
-
 export function Dashboard() {
   const [userContext, setUserContext] = useLocalStorage<UserContext>('user-context', {
     resume: '',
@@ -19,6 +16,7 @@ export function Dashboard() {
   });
 
   const [jobApplications, setJobApplications] = useLocalStorage<JobContext[]>('job-applications', []);
+  const [apiKey, setApiKey] = useLocalStorage<string>('gemini-api-key', process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
   
   return (
     <>
@@ -37,9 +35,10 @@ export function Dashboard() {
           <InterviewController
             userContext={userContext}
             jobApplications={jobApplications}
-            apiKey={GEMINI_API_KEY}
+            apiKey={apiKey}
             onConfigureApiKey={() => {
-              // No longer needed
+              const key = prompt('Enter your Gemini API Key:');
+              if (key) setApiKey(key);
             }}
           />
         </TabsContent>

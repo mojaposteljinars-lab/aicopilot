@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  // Note: 'output: export' removed for Firebase deployment
+  // API routes require server-side execution
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

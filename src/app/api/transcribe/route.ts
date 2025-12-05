@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { run } from 'genkit';
-import { transcriberFlow } from '@/ai/server';
+import { transcribeAudio } from '@/ai/flows/transcribe-audio';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,13 +9,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No audio data provided.' }, { status: 400 });
     }
 
-    if (!transcriberFlow) {
-      console.error("Transcriber flow is not defined. Genkit initialization might have failed.");
-      return NextResponse.json({ error: 'Server misconfiguration: Transcriber flow not found.' }, { status: 500 });
+    const apiKey = process.env.DEEPGRAM_API_KEY;
+    if (!apiKey) {
+      console.error("DEEPGRAM_API_KEY environment variable is not set.");
+      return NextResponse.json({ error: 'Server misconfiguration: DEEPGRAM_API_KEY not found.' }, { status: 500 });
     }
     
-    // Run the Genkit flow on the server with the audio data
-    const transcript = await run(transcriberFlow, { input: { audio } });
+    // Call the transcription function directly
+    const transcript = await transcribeAudio(audio, apiKey);
 
     return NextResponse.json({ transcript });
   } catch (error) {
