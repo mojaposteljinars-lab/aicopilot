@@ -1,61 +1,25 @@
-import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import { defineFlow, generate } from 'genkit';
+import { z } from 'zod';
 
-/**
- * Transcribes the given audio data using the Deepgram Live (Streaming) SDK.
- * This function is designed to handle a single chunk of audio and return the transcript.
- * @param audio The base64-encoded audio data.
- * @param apiKey The Deepgram API key.
- * @returns The transcribed text.
- */
-export function transcribeAudio(audio: string, apiKey: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!apiKey) {
-        return reject(new Error("API key is missing in transcribeAudio function."));
+export const transcriberFlow = defineFlow(
+  {
+    name: 'transcriberFlow',
+    inputSchema: z.object({ audio: z.string() }), // Expecting base64 audio string
+    outputSchema: z.string(),
+  },
+  async ({ audio }) => {
+    
+    const llmResponse = await generate({
+      model: 'googleai/gemini-1.5-flash',
+      prompt: [
+        { text: `Transcribe the following audio. Only return the transcribed text, with no additional commentary.` },
+        { media: { url: `data:audio/webm;base64,${audio}` } }
+      ],
+      config: {
+        temperature: 0.4,
       }
+    });
 
-      const deepgram = createClient(apiKey);
-      const connection = deepgram.listen.live({
-        model: 'nova-2',
-        smart_format: true,
-        punctuate: true,
-        // The client is sending webm/opus, but we'll let Deepgram auto-detect
-        // as this has proven to be a tricky parameter.
-      });
-
-      let fullTranscript = '';
-
-      connection.on(LiveTranscriptionEvents.Open, () => {
-        console.log('Deepgram connection opened.');
-        const audioBuffer = Buffer.from(audio, 'base64');
-        connection.send(audioBuffer);
-        connection.finish();
-      });
-
-      connection.on(LiveTranscriptionEvents.Transcript, (data) => {
-        const transcript = data.channel.alternatives[0].transcript;
-        if (transcript) {
-          fullTranscript += transcript + ' ';
-        }
-      });
-      
-      connection.on(LiveTranscriptionEvents.Close, () => {
-        console.log('Deepgram connection closed. Final transcript:', fullTranscript.trim());
-        resolve(fullTranscript.trim()); 
-      });
-
-      connection.on(LiveTranscriptionEvents.Error, (err) => {
-        console.error('Deepgram streaming error:', err);
-        reject(new Error(`Deepgram error: ${err.message}`));
-      });
-      
-    } catch (err) {
-      console.error("Error in transcribeAudio (Deepgram Live) function setup:", err);
-      if (err instanceof Error) {
-        reject(new Error(`Failed to transcribe audio with Deepgram: ${err.message}`));
-      } else {
-        reject(new Error('An unknown error occurred during Deepgram transcription setup.'));
-      }
-    }
-  });
-}
+    return llmResponse.text();
+  }
+);
